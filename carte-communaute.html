@@ -202,7 +202,19 @@ const COLORS = {
 function badgeClass(s){ return s==="En mission"?"mission":s==="Disponible bientôt"?"dispo":"recherche"; }
 
 let map, allMembers = [], mapMarkers = [], activeFilter = "tous";
-const coordsCache = {};
+
+const CACHE_KEY = "dc_geocache_v1";
+const coordsCache = JSON.parse(localStorage.getItem(CACHE_KEY) || "{}");
+function saveCache(){ localStorage.setItem(CACHE_KEY, JSON.stringify(coordsCache)); }
+
+let lastGeocodeTime = 0;
+async function rateLimitedFetch(url){
+  const now = Date.now();
+  const wait = Math.max(0, 1100 - (now - lastGeocodeTime));
+  if(wait > 0) await new Promise(r => setTimeout(r, wait));
+  lastGeocodeTime = Date.now();
+  return fetch(url);
+}
 
 async function geocode(city){
   const key = city.toLowerCase().trim();
@@ -215,11 +227,12 @@ async function geocode(city){
   ];
   for(const url of queries){
     try {
-      const res = await fetch(url);
+      const res = await rateLimitedFetch(url);
       const data = await res.json();
       if(data.length > 0){
         const coords = [parseFloat(data[0].lat), parseFloat(data[0].lon)];
         coordsCache[key] = coords;
+        saveCache();
         return coords;
       }
     } catch(e) {}
