@@ -190,15 +190,23 @@ const coordsCache = {};
 async function geocode(city){
   const key = city.toLowerCase().trim();
   if(coordsCache[key]) return coordsCache[key];
-  try {
-    const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(city+", France")}&format=json&limit=1`);
-    const data = await res.json();
-    if(data.length > 0){
-      const coords = [parseFloat(data[0].lat), parseFloat(data[0].lon)];
-      coordsCache[key] = coords;
-      return coords;
-    }
-  } catch(e) {}
+  const normalized = key.replace(/\s+/g, "-");
+  const queries = [
+    `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(city)}&countrycodes=fr&format=json&limit=1`,
+    `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(normalized)}&countrycodes=fr&format=json&limit=1`,
+    `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(city+", France")}&format=json&limit=1`
+  ];
+  for(const url of queries){
+    try {
+      const res = await fetch(url);
+      const data = await res.json();
+      if(data.length > 0){
+        const coords = [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+        coordsCache[key] = coords;
+        return coords;
+      }
+    } catch(e) {}
+  }
   return null;
 }
 
